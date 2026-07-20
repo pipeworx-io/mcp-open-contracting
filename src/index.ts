@@ -36,21 +36,22 @@ interface McpToolExport {
 
 
 // Exact stored country values in the mirror (ocds_latest.country).
+// Exact `country` values as stored by the two loaders (worker
+// datasets/ocds.ts + scripts/ocds-heavy-upsert.sh). Keep in sync when adding
+// publishers. Must be eq-filters: country has a btree (country, release_date)
+// index; an ilike here forces a 17s+ unindexed scan.
 const COUNTRIES = [
-  'Albania',
-  'Croatia',
-  'Ghana',
-  'Honduras',
-  'Italy',
-  'Kenya',
-  'Kosovo',
-  'Liberia',
-  'Mexico (Oaxaca)',
-  'Nigeria',
-  'Thailand (Bangkok)',
-  'Uruguay',
-  'Zambia',
+  'Albania', 'Argentina', 'Croatia', 'Dominican Republic', 'Ghana',
+  'Guatemala', 'Honduras', 'Italy', 'Kenya', 'Kosovo', 'Liberia', 'Mexico',
+  'Nigeria', 'Peru', 'Rwanda', 'Tanzania', 'Thailand', 'Uruguay', 'Zambia',
 ] as const;
+
+// City/region aliases → stored country values.
+const COUNTRY_ALIASES: Record<string, string> = {
+  bangkok: 'Thailand', oaxaca: 'Mexico', anac: 'Italy', mendoza: 'Argentina',
+  'dominican rep': 'Dominican Republic', dr: 'Dominican Republic',
+  guatecompras: 'Guatemala', oece: 'Peru',
+};
 
 const CATEGORIES = ['works', 'goods', 'services'] as const;
 
@@ -58,7 +59,7 @@ const tools: McpToolExport['tools'] = [
   {
     name: 'oc_tender_search',
     description:
-      'Search international public procurement — government tenders, contract notices, and contract awards published under the OCDS Open Contracting Data Standard. Covers 13 national and subnational publishers across developing countries and Europe: Africa (Kenya, Nigeria, Ghana, Zambia, Liberia), Latin America (Uruguay, Honduras, Mexico/Oaxaca), the Balkans (Albania, Kosovo, Croatia), Thailand (Bangkok), and Italy (ANAC anti-corruption authority). Free-text query matches tender title, buyer (procuring government entity), and description. Filter by country, status (e.g. tender, award, complete), category (works | goods | services), min_value (tender value floor), and days (recently released). Returns one row per contracting process (latest release) with buyer, value, procurement method, deadlines, and award details when present. Data is a weekly-refreshed hosted mirror of official OCDS bulk publications (OCP Data Registry). Use oc_coverage first to see which countries have data and how fresh it is.',
+      'Search international public procurement — government tenders, contract notices, and contract awards published under the OCDS Open Contracting Data Standard. Covers 18 national and subnational publishers across developing countries and Europe: Africa (Kenya, Nigeria, Ghana, Zambia, Liberia, Rwanda, Tanzania), Latin America (Uruguay, Honduras, Guatemala, Peru, Dominican Republic, Mexico/Oaxaca), the Balkans (Albania, Kosovo, Croatia), Thailand (Bangkok), and Italy (ANAC anti-corruption authority). Free-text query matches tender title, buyer (procuring government entity), and description. Filter by country, status (e.g. tender, award, complete), category (works | goods | services), min_value (tender value floor), and days (recently released). Returns one row per contracting process (latest release) with buyer, value, procurement method, deadlines, and award details when present. Data is a weekly-refreshed hosted mirror of official OCDS bulk publications (OCP Data Registry). Use oc_coverage first to see which countries have data and how fresh it is.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -76,7 +77,7 @@ const tools: McpToolExport['tools'] = [
   {
     name: 'oc_recent',
     description:
-      'Most recently published government procurement releases — new tenders and fresh contract awards across all covered OCDS publishers (Kenya, Nigeria, Ghana, Zambia, Liberia, Uruguay, Honduras, Mexico/Oaxaca, Albania, Kosovo, Croatia, Thailand/Bangkok, Italy), newest first. Optionally filter to one country and adjust the lookback window. The "what public tenders just came out" view over the weekly-refreshed OCP Data Registry mirror.',
+      'Most recently published government procurement releases — new tenders and fresh contract awards across all covered OCDS publishers (Kenya, Nigeria, Ghana, Zambia, Liberia, Rwanda, Tanzania, Uruguay, Honduras, Guatemala, Peru, Dominican Republic, Mexico/Oaxaca, Albania, Kosovo, Croatia, Thailand/Bangkok, Italy), newest first. Optionally filter to one country and adjust the lookback window. The "what public tenders just came out" view over the weekly-refreshed OCP Data Registry mirror.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -102,7 +103,7 @@ const tools: McpToolExport['tools'] = [
   {
     name: 'oc_coverage',
     description:
-      'What open-contracting procurement data Pipeworx currently holds: per-country publisher name, release and contracting-process counts, and latest-release freshness. Call this first to learn which of the 13 covered countries (Albania, Croatia, Ghana, Honduras, Italy, Kenya, Kosovo, Liberia, Mexico/Oaxaca, Nigeria, Thailand/Bangkok, Uruguay, Zambia) have data, how much, and how current the weekly-refreshed mirror is before relying on it.',
+      'What open-contracting procurement data Pipeworx currently holds: per-country publisher name, release and contracting-process counts, and latest-release freshness. Call this first to learn which of the 18 covered countries (Albania, Croatia, Dominican Republic, Ghana, Guatemala, Honduras, Italy, Kenya, Kosovo, Liberia, Mexico/Oaxaca, Nigeria, Peru, Rwanda, Tanzania, Thailand/Bangkok, Uruguay, Zambia) have data, how much, and how current the weekly-refreshed mirror is before relying on it.',
     inputSchema: { type: 'object', properties: {}, required: [] },
   },
 ];
@@ -129,19 +130,29 @@ function clampInt(v: unknown, lo: number, hi: number, dflt: number): number {
   return Math.min(Math.max(Math.trunc(n), lo), hi);
 }
 
-// Forgiving country resolution: "thailand" / "Thailand" / "bangkok" all map to
-// the exact stored value "Thailand (Bangkok)". Returns null when nothing
-// matches so callers can shape an { error } with the valid list.
-function resolveCountry(input: string): string | null {
-  const q = input.trim().toLowerCase();
-  if (!q) return null;
-  for (const c of COUNTRIES) {
-    if (c.toLowerCase() === q) return c;
+// Forgiving country resolution to an EXACT stored value (indexed eq filter):
+// case-insensitive, parentheticals stripped, aliases ("bangkok") mapped.
+// Rows come ordered release_date desc — first row per process wins.
+function dedupeLatest(rows: ReleaseRow[]): ReleaseRow[] {
+  const seen = new Set<string>();
+  const out: ReleaseRow[] = [];
+  for (const r of rows) {
+    const key = `${r.source_id}|${r.ocid}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(r);
   }
+  return out;
+}
+
+function countryFilter(input: string): string | null {
+  const q = input.trim().replace(/\s*\(.*\)$/, '').toLowerCase();
+  if (!q) return null;
+  const alias = COUNTRY_ALIASES[q];
+  if (alias) return `country=eq.${encodeURIComponent(alias)}`;
   for (const c of COUNTRIES) {
     const lc = c.toLowerCase();
-    const base = lc.replace(/\s*\(.*\)$/, '');
-    if (base === q || lc.includes(q) || q.includes(base)) return c;
+    if (lc === q || lc.startsWith(q)) return `country=eq.${encodeURIComponent(c)}`;
   }
   return null;
 }
@@ -231,9 +242,9 @@ async function tenderSearch(cfg: SupabaseConfig, args: Record<string, unknown>) 
   if (query) parts.push(textSearchFilter(query));
   const countryInput = String(args.country ?? '').trim();
   if (countryInput) {
-    const country = resolveCountry(countryInput);
+    const country = countryFilter(countryInput);
     if (!country) return unknownCountryError(countryInput);
-    parts.push(`country=eq.${encodeURIComponent(country)}`);
+    parts.push(country);
   }
   const status = String(args.status ?? '').trim();
   if (status) parts.push(`status=eq.${encodeURIComponent(status.toLowerCase())}`);
@@ -247,26 +258,32 @@ async function tenderSearch(cfg: SupabaseConfig, args: Record<string, unknown>) 
     parts.push(`release_date=gte.${since}`);
   }
   const limit = clampInt(args.limit, 1, 100, 20);
-  parts.push(RELEASE_SELECT, 'order=release_date.desc.nullslast', `limit=${limit}`);
-  const rows = await pg<ReleaseRow[]>(cfg, 'ocds_latest', parts.join('&'));
-  return { count: rows.length, processes: rows.map(shapeRelease) };
+  // Query the base table, not the ocds_latest view: DISTINCT ON in the view
+  // materializes all 400k+ rows before filtering (20s). The table path uses
+  // the (country, release_date) and trgm indexes; rows arrive newest-first,
+  // so keeping the first row per process is the latest release.
+  parts.push(RELEASE_SELECT, 'order=release_date.desc.nullslast', `limit=${Math.min(limit * 3, 300)}`);
+  const rows = await pg<ReleaseRow[]>(cfg, 'ocds_releases', parts.join('&'));
+  const deduped = dedupeLatest(rows).slice(0, limit);
+  return { count: deduped.length, processes: deduped.map(shapeRelease) };
 }
 
 async function recent(cfg: SupabaseConfig, args: Record<string, unknown>) {
   const parts: string[] = [];
   const countryInput = String(args.country ?? '').trim();
   if (countryInput) {
-    const country = resolveCountry(countryInput);
+    const country = countryFilter(countryInput);
     if (!country) return unknownCountryError(countryInput);
-    parts.push(`country=eq.${encodeURIComponent(country)}`);
+    parts.push(country);
   }
   const days = clampInt(args.days, 1, 365, 14);
   const since = new Date(Date.now() - days * 86_400_000).toISOString();
   parts.push(`release_date=gte.${since}`);
   const limit = clampInt(args.limit, 1, 100, 20);
-  parts.push(RELEASE_SELECT, 'order=release_date.desc.nullslast', `limit=${limit}`);
-  const rows = await pg<ReleaseRow[]>(cfg, 'ocds_latest', parts.join('&'));
-  return { days, count: rows.length, processes: rows.map(shapeRelease) };
+  parts.push(RELEASE_SELECT, 'order=release_date.desc.nullslast', `limit=${Math.min(limit * 3, 300)}`);
+  const rows = await pg<ReleaseRow[]>(cfg, 'ocds_releases', parts.join('&'));
+  const deduped = dedupeLatest(rows).slice(0, limit);
+  return { days, count: deduped.length, processes: deduped.map(shapeRelease) };
 }
 
 async function processHistory(cfg: SupabaseConfig, args: Record<string, unknown>) {
@@ -328,7 +345,7 @@ interface CoverageRow {
 async function coverage(cfg: SupabaseConfig) {
   const rows = await pg<CoverageRow[]>(
     cfg,
-    'ocds_coverage',
+    'ocds_coverage_cached',
     'select=source_id,country,publisher,releases,processes,latest_release&order=country.asc',
   );
   return {
