@@ -1,20 +1,32 @@
 {
   "name": "@pipeworx/mcp-open-contracting",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Open Contracting MCP — international public procurement: government tenders",
   "type": "module",
   "main": "src/index.ts",
   "types": "src/index.ts",
+  "bin": {
+    "mcp-open-contracting": "bin/cli.js"
+  },
   "keywords": ["mcp", "mcp-server", "model-context-protocol", "pipeworx", "open-contracting"],
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/pipeworx-io/mcp-open-contracting"
+    "url": "git+https://github.com/pipeworx-io/mcp-open-contracting.git"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "tsx": "^4.19.0"
+  },
   "devDependencies": {
-    "typescript": "^5.7.0"
+    "typescript": "^5.9.3",
+    "@cloudflare/workers-types": "^4.20260405.1"
+  },
+  "pipeworx": {
+    "sourceHash": "v1-7ed35da951c9bf199fe5f2302392c26361e39b45ea605126a977c1717ae54847",
+    "sourceCommit": "adb69d997f82a62e8e22b594488c7d04a227db35"
   }
 }

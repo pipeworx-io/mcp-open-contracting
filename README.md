@@ -5,7 +5,7 @@ contract awards published under the OCDS (Open Contracting Data Standard).
 Mirrors bulk OCDS releases from 19 national and subnational publishers —
 838,000+ contracting processes — refreshed weekly from the OCP Data Registry.
 
-Part of [Pipeworx](https://pipeworx.io) — an MCP gateway connecting AI agents to 1476+ live data sources.
+Part of [Pipeworx](https://pipeworx.io) — an MCP gateway connecting AI agents to 1679+ live data sources.
 
 ## Tools
 
@@ -22,7 +22,7 @@ Part of [Pipeworx](https://pipeworx.io) — an MCP gateway connecting AI agents 
 
 ## Auth
 
-None for the caller. The pack is `injectSupabase` — it reads the OCDS bulk
+None for the caller. The gateway injects the pack's data credentials — it reads the OCDS bulk
 publications over PostgREST, so a query resolves against one backing store
 rather than depending on 19 separate upstream APIs being up at once.
 
@@ -133,9 +133,45 @@ directly, instead of just this one's:
 }
 ```
 
-Both URLs reach the same gateway and the same 1476+ data sources. The
+Both URLs reach the same gateway and the same 1679+ data sources. The
 only difference is which pack's tools are listed **directly**; `ask_pipeworx`
 reaches all of them from either one.
+
+## No MCP client? Call it over HTTP
+
+```bash
+curl -X POST https://gateway.pipeworx.io/v1/tools/oc_tender_search \
+  -H 'Content-Type: application/json' \
+  -d '{"query":"Ministry of Health","country":"Dominican Republic","limit":5}'
+```
+
+No account needed for the first calls. Inspect any tool: `GET https://gateway.pipeworx.io/v1/tools/oc_tender_search`. Find one: `POST https://gateway.pipeworx.io/v1/tools/search_packs` with `{"query":"..."}`.
+
+## Standalone (no gateway account)
+
+This package also runs as a local stdio MCP server — no Pipeworx account, no
+gateway round-trip:
+
+```json
+{
+  "mcpServers": {
+    "open-contracting": {
+      "command": "npx",
+      "args": ["-y", "@pipeworx/mcp-open-contracting"]
+    }
+  }
+}
+```
+
+Or run it directly to confirm it starts:
+
+```bash
+npx -y @pipeworx/mcp-open-contracting
+```
+
+It speaks MCP over stdin/stdout and answers `initialize`/`tools/list`/`tools/call`
+for **only** this pack's tools — none of the shared meta-tools the gateway
+connection above adds. Same source, same tools, no ask_pipeworx routing.
 
 ## Using with ask_pipeworx
 
@@ -156,13 +192,3 @@ The gateway picks the right tool and fills the arguments automatically.
 ## License
 
 MIT
-
-## No MCP client? Call it over HTTP
-
-```bash
-curl -X POST https://gateway.pipeworx.io/v1/tools/oc_tender_search \
-  -H 'Content-Type: application/json' \
-  -d '{"query":"Ministry of Health","country":"Dominican Republic","limit":5}'
-```
-
-No account needed for the first calls. Inspect any tool: `GET https://gateway.pipeworx.io/v1/tools/oc_tender_search`. Find one: `POST https://gateway.pipeworx.io/v1/tools/search_packs` with `{"query":"..."}`.
