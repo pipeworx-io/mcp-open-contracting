@@ -1,6 +1,6 @@
 {
   "name": "@pipeworx/mcp-open-contracting",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Open Contracting MCP — international public procurement: government tenders",
   "type": "module",
   "main": "src/index.ts",
@@ -26,7 +26,7 @@
     "@cloudflare/workers-types": "^4.20260405.1"
   },
   "pipeworx": {
-    "sourceHash": "v1-7ed35da951c9bf199fe5f2302392c26361e39b45ea605126a977c1717ae54847",
-    "sourceCommit": "adb69d997f82a62e8e22b594488c7d04a227db35"
+    "sourceHash": "v1-7212aeeac8059ff976d6fba07b7f1cbe5e786aef698653972a3223aa7ab4ed85",
+    "sourceCommit": "97740c6ee04c8acbfe7dddcacfde9e88ff2b9ca0"
   }
 }

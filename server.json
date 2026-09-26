@@ -3,7 +3,7 @@
   "name": "io.github.pipeworx-io/open-contracting",
   "title": "Open Contracting",
   "description": "Open Contracting MCP — international public procurement: government tenders",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "websiteUrl": "https://pipeworx.io/packs/open-contracting",
   "repository": {
     "url": "https://github.com/pipeworx-io/mcp-open-contracting",
