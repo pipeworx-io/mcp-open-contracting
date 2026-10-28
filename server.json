@@ -2,8 +2,8 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.pipeworx-io/open-contracting",
   "title": "Open Contracting",
-  "description": "Open Contracting MCP — international public procurement: government tenders",
-  "version": "0.1.2",
+  "description": "Open Contracting MCP — international public procurement: government tenders and contract awards…",
+  "version": "0.1.3",
   "websiteUrl": "https://pipeworx.io/packs/open-contracting",
   "repository": {
     "url": "https://github.com/pipeworx-io/mcp-open-contracting",
