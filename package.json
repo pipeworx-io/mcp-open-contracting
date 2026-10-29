@@ -1,12 +1,20 @@
 {
   "name": "@pipeworx/mcp-open-contracting",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "description": "Open Contracting MCP — international public procurement: government tenders and contract awards published under the OCDS (Open Contracting Data Standard). Covers the OCP Data Registry — bulk OCDS releases from 13 national/subnational publishers, refreshed weekly — via PostgREST.",
   "type": "module",
-  "main": "src/index.ts",
-  "types": "src/index.ts",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./tools.json": "./tools.json",
+    "./package.json": "./package.json"
+  },
   "bin": {
     "mcp-open-contracting": "bin/cli.js"
+  },
+  "files": ["bin/", "lib/", "tools.json", "server.json"],
+  "engines": {
+    "node": ">=18"
   },
   "keywords": ["mcp", "mcp-server", "model-context-protocol", "pipeworx", "open-contracting"],
   "license": "MIT",
@@ -14,19 +22,12 @@
     "type": "git",
     "url": "git+https://github.com/pipeworx-io/mcp-open-contracting.git"
   },
-  "scripts": {
-    "typecheck": "tsc --noEmit"
-  },
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.30.0",
-    "tsx": "^4.19.0"
-  },
-  "devDependencies": {
-    "typescript": "^5.9.3",
-    "@cloudflare/workers-types": "^4.20260405.1"
-  },
+  "mcpName": "io.github.pipeworx-io/open-contracting",
   "pipeworx": {
-    "sourceHash": "v1-89678f3225ce6f0fc6fb8e3579e33c1321e2827e3f1e25f16712a9426d38b0d6",
-    "sourceCommit": "f54ad77e789f27fe393978f9c080b5b18c87bb4f"
+    "mode": "gateway",
+    "slug": "open-contracting",
+    "gatewaySlug": "open-contracting",
+    "sourceHash": "v1-b312a0535bddfb4bdbe4324e68405d4842172a2e93ff1c49de9e4388bfff412b",
+    "sourceCommit": "b2c4383545bb35171d0ada2beb1c9c7168ea175e"
   }
 }
