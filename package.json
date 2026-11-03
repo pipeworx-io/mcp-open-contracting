@@ -1,6 +1,6 @@
 {
   "name": "@pipeworx/mcp-open-contracting",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Open Contracting MCP — international public procurement: government tenders and contract awards published under the OCDS (Open Contracting Data Standard). Covers the OCP Data Registry — bulk OCDS releases from 13 national/subnational publishers, refreshed weekly — via PostgREST.",
   "type": "module",
   "main": "lib/index.js",
@@ -27,7 +27,7 @@
     "mode": "gateway",
     "slug": "open-contracting",
     "gatewaySlug": "open-contracting",
-    "sourceHash": "v1-b312a0535bddfb4bdbe4324e68405d4842172a2e93ff1c49de9e4388bfff412b",
-    "sourceCommit": "b2c4383545bb35171d0ada2beb1c9c7168ea175e"
+    "sourceHash": "v1-c3954367e936337e7d2922dd9b34b23864d37929402f3be4232b08f7ff16eb8c",
+    "sourceCommit": "bed7faa04e7276899b5e3870ef11c98625371f2b"
   }
 }
